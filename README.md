@@ -1,13 +1,13 @@
 # thryv-partner-hub-bff
 
-A production-ready Node.js template built with TypeScript and NestJS, designed for microservices architecture with AWS Lambda deployment support. Features modular design, PostgreSQL/DynamoDB integration, Auth0 authentication, and comprehensive observability with Datadog and Cube Cloud analytics.
+Backend-for-Frontend (BFF) for Thryv — a production-ready NestJS + TypeScript backend that exposes APIs for partner-facing applications. Features modular design, PostgreSQL integration, Auth0 authentication, and comprehensive observability with Datadog and Cube Cloud analytics.
 
 ## 🏗️ Architecture Overview
 
 This template implements a modular microservices architecture using:
 
 - **Framework**: NestJS with TypeScript (strict mode)
-- **Databases**: PostgreSQL (via TypeORM) and DynamoDB (AWS SDK v3)
+- **Databases**: PostgreSQL (via TypeORM)
 - **Authentication**: Auth0 JWT with RS256 validation
 - **Deployment**: AWS Lambda via Serverless Framework
 - **Observability**: Datadog APM, CloudWatch logging, Cube Cloud analytics

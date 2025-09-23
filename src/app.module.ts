@@ -3,8 +3,6 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommonModule } from './common/common.module';
-import { CustomerModule } from './modules/customer/customer.module';
-import { ReportsModule } from './modules/reports/reports.module';
 import { AuthModule } from './common/auth/auth.module';
 import { AuthTokenModule } from './modules/auth-token/auth-token.module';
 import { DatabaseConfig } from './config/database.config';
@@ -34,8 +32,6 @@ import { AppService } from './app.service';
     CommonModule,
     AuthModule,
     AuthTokenModule,
-  CustomerModule,
-    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
