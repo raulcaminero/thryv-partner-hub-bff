@@ -26,20 +26,6 @@ export class ReportsController {
     return this.reportsService.getCustomerReport(dateFrom, dateTo);
   }
 
-  @Get('companies')
-  @RequireRoles(['admin', 'analyst'])
-  @ApiOperation({ summary: 'Get company analytics report' })
-  @ApiResponse({ status: 200, description: 'Company report generated successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Insufficient permissions' })
-  @ApiQuery({ name: 'dateFrom', required: false, description: 'Start date (ISO 8601)' })
-  @ApiQuery({ name: 'dateTo', required: false, description: 'End date (ISO 8601)' })
-  async getCompanyReport(
-    @Query('dateFrom') dateFrom?: string,
-    @Query('dateTo') dateTo?: string,
-  ) {
-    return this.reportsService.getCompanyReport(dateFrom, dateTo);
-  }
 
   @Get('dashboard')
   @RequireRoles(['admin', 'analyst', 'manager'])

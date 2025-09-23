@@ -27,15 +27,6 @@ This template implements a modular microservices architecture using:
 - **createDate/updateDate**: UTC timestamps
 - **deletedAt**: nullable datetime for soft delete
 
-#### Company Entity (DynamoDB)
-- **id**: UUID (partition key)
-- **identification**: string (max 25 chars, GSI)
-- **name**: string (max 50 chars)
-- **alias**: string (max 100 chars)
-- **address**: string (max 250 chars)
-- **status**: enum ['active','pending','inactive']
-- **createDate/updateDate**: ISO 8601 strings
-- **deletedAt**: nullable for soft delete
 
 ## 🚀 Quick Start
 
@@ -133,18 +124,10 @@ All endpoints require `Authorization: Bearer <jwt-token>` header.
 - `DELETE /customers/:id` - Soft delete customer
 - `PATCH /customers/:id/restore` - Restore deleted customer
 
-### Companies (DynamoDB)  
-- `POST /companies` - Create company
-- `GET /companies` - List companies (supports pagination & status filter)
-- `GET /companies/:id` - Get company by ID
-- `GET /companies/identification/:identification` - Get by identification
-- `PUT /companies/:id` - Update company
-- `DELETE /companies/:id` - Soft delete company
-- `PATCH /companies/:id/restore` - Restore deleted company
+<!-- Companies API removed from this template. -->
 
 ### Reports & Analytics
 - `GET /reports/customers` - Customer analytics report
-- `GET /reports/companies` - Company analytics report  
 - `GET /reports/dashboard` - Combined analytics dashboard
 - `GET /reports/health` - Reports service health check
 
@@ -177,7 +160,6 @@ npm run test:watch
 
 Tests use isolated test databases:
 - PostgreSQL: `thryv_test_db`
-- DynamoDB Local: `company-table-test`
 
 Test configuration automatically mocks Auth0 JWT validation.
 
