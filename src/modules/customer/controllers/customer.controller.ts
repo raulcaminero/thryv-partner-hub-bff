@@ -1,20 +1,17 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Put, 
-  Delete, 
-  Patch, 
-  Body, 
-  Param, 
-  Query, 
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Patch,
+  Body,
+  Param,
+  Query,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { 
-  ApiQuery,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiQuery, ApiParam } from '@nestjs/swagger';
 import { CustomerService } from '../services/customer.service';
 import { CreateCustomerDto, UpdateCustomerDto } from '../dto/customer.dto';
 import { Customer, CustomerStatus } from '../entities/customer.entity';
@@ -27,13 +24,13 @@ export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
 
   @Post()
-  @ApiCrudOperation('create', 'Customer', Customer)
+  @ApiCrudOperation('create', 'Customer')
   async create(@Body() createCustomerDto: CreateCustomerDto): Promise<Customer> {
     return this.customerService.create(createCustomerDto);
   }
 
-    @Get()
-  @ApiCrudOperation('findAll', 'Customer', Customer)
+  @Get()
+  @ApiCrudOperation('findAll', 'Customer')
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (starting from 1)', example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Number of items per page', example: 10 })
   @ApiQuery({ name: 'status', required: false, enum: CustomerStatus, description: 'Filter by customer status' })
@@ -44,29 +41,26 @@ export class CustomerController {
   ) {
     const pageNumber = parseInt(page, 10);
     const limitNumber = parseInt(limit, 10);
-    return this.customerService.findAll(pageNumber, limitNumber, status);
+    return this.customerService.findAll(pageNumber, limitNumber, status as any);
   }
 
   @Get(':id')
-  @ApiCrudOperation('findOne', 'Customer', Customer)
+  @ApiCrudOperation('findOne', 'Customer')
   @ApiParam({ name: 'id', description: 'Customer UUID' })
   async findOne(@Param('id') id: string): Promise<Customer> {
     return this.customerService.findOne(id);
   }
 
   @Get('identification/:identification')
-  @ApiFindByIdentification('Customer', Customer)
+  @ApiFindByIdentification('Customer')
   async findByIdentification(@Param('identification') identification: string): Promise<Customer> {
     return this.customerService.findByIdentification(identification);
   }
 
   @Put(':id')
-  @ApiCrudOperation('update', 'Customer', Customer)
+  @ApiCrudOperation('update', 'Customer')
   @ApiParam({ name: 'id', description: 'Customer UUID' })
-  async update(
-    @Param('id') id: string,
-    @Body() updateCustomerDto: UpdateCustomerDto,
-  ): Promise<Customer> {
+  async update(@Param('id') id: string, @Body() updateCustomerDto: UpdateCustomerDto): Promise<Customer> {
     return this.customerService.update(id, updateCustomerDto);
   }
 
@@ -75,11 +69,11 @@ export class CustomerController {
   @ApiParam({ name: 'id', description: 'Customer UUID' })
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id') id: string): Promise<void> {
-    return this.customerService.softDelete(id);
+    return this.customerService.remove(id);
   }
 
   @Patch(':id/restore')
-  @ApiCrudOperation('restore', 'Customer', Customer)
+  @ApiCrudOperation('restore', 'Customer')
   @ApiParam({ name: 'id', description: 'Customer UUID' })
   async restore(@Param('id') id: string): Promise<Customer> {
     return this.customerService.restore(id);

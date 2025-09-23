@@ -1,138 +1,69 @@
-import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
-import { CompanyRepository } from '../repositories/company.repository';
-import { CompanyEntity, CompanyStatus } from '../entities/company.entity';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { lastValueFrom } from 'rxjs';
+import { ConfigService } from '@nestjs/config';
 import { CreateCompanyDto, UpdateCompanyDto } from '../dto/company.dto';
+import { Company } from '../entities/company.entity';
 
 @Injectable()
 export class CompanyService {
-  constructor(private readonly companyRepository: CompanyRepository) {}
+  private readonly basePath = '/companies';
 
-  async create(createCompanyDto: CreateCompanyDto): Promise<CompanyEntity> {
+  constructor(private readonly httpService: HttpService, private readonly config: ConfigService) {}
+
+  private getBaseUrl(): string {
+    return this.config.get<string>('REMOTE_BACKEND_URL') || this.config.get<string>('REMOTE_API_URL') || '';
+  }
+
+  private async request<T>(method: string, path: string, data?: any, params?: any): Promise<T> {
+    const url = `${this.getBaseUrl()}${path}`;
     try {
-      // Verificar si ya existe una company con esa identificación
-      const existingCompany = await this.companyRepository.findByIdentification(createCompanyDto.identification);
-      
-      if (existingCompany) {
-        throw new BadRequestException(`Company with identification ${createCompanyDto.identification} already exists`);
-      }
-
-      return await this.companyRepository.create(createCompanyDto);
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      
-      // Manejar errores específicos de DynamoDB
-      if (error.name === 'ConditionalCheckFailedException') {
-        throw new BadRequestException(`Company with identification ${createCompanyDto.identification} already exists`);
-      }
-      
-      throw new InternalServerErrorException(`Failed to create company: ${error.message}`);
+      const resp$ = this.httpService.request({ method: method as any, url, data, params });
+      const resp = await lastValueFrom(resp$);
+      return resp.data as T;
+    } catch (err: any) {
+      const status = err?.response?.status || HttpStatus.BAD_GATEWAY;
+      const payload = err?.response?.data || { message: err?.message || 'Remote service error' };
+      throw new HttpException(payload, status);
     }
   }
 
-  async findAll(
-    limit: number = 10,
-    lastEvaluatedKey?: any,
-    status?: CompanyStatus,
-  ): Promise<{ companies: CompanyEntity[]; lastEvaluatedKey?: any; count: number }> {
-    try {
-      return await this.companyRepository.findAll(limit, lastEvaluatedKey, status);
-    } catch (error) {
-      throw new InternalServerErrorException(`Failed to fetch companies: ${error.message}`);
-    }
+  async create(dto: CreateCompanyDto): Promise<Company> {
+    return this.request<Company>('post', this.basePath, dto);
   }
 
-  async findOne(id: string): Promise<CompanyEntity> {
-    try {
-      const company = await this.companyRepository.findOne(id);
-      if (!company) {
-        throw new NotFoundException(`Company with ID ${id} not found`);
-      }
-      return company;
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(`Failed to fetch company: ${error.message}`);
-    }
+  async findAll(limit = 10, lastKey?: any, status?: string) {
+    const params: any = { limit };
+    if (lastKey) params.lastKey = lastKey;
+    if (status) params.status = status;
+    return this.request<{ companies: Company[]; lastEvaluatedKey?: any; count: number }>('get', this.basePath, undefined, params);
   }
 
-  async findByIdentification(identification: string): Promise<CompanyEntity> {
-    try {
-      const company = await this.companyRepository.findByIdentification(identification);
-      if (!company) {
-        throw new NotFoundException(`Company with identification ${identification} not found`);
-      }
-      return company;
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(`Failed to fetch company by identification: ${error.message}`);
-    }
+  async findOne(id: string): Promise<Company> {
+    return this.request<Company>('get', `${this.basePath}/${encodeURIComponent(id)}`);
   }
 
-  async update(id: string, updateCompanyDto: UpdateCompanyDto): Promise<CompanyEntity> {
-    try {
-      // Si se está actualizando la identificación, verificar que no exista ya en otra company
-      if (updateCompanyDto.identification) {
-        const existingCompany = await this.companyRepository.findByIdentification(updateCompanyDto.identification);
-        
-        if (existingCompany && existingCompany.id !== id) {
-          throw new BadRequestException(`Company with identification ${updateCompanyDto.identification} already exists`);
-        }
-      }
+  async findByIdentification(identification: string): Promise<Company> {
+    return this.request<Company>('get', `${this.basePath}/identification/${encodeURIComponent(identification)}`);
+  }
 
-      const company = await this.companyRepository.update(id, updateCompanyDto);
-      if (!company) {
-        throw new NotFoundException(`Company with ID ${id} not found`);
-      }
-      return company;
-    } catch (error) {
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
-        throw error;
-      }
-      
-      // Manejar errores específicos de DynamoDB
-      if (error.name === 'ConditionalCheckFailedException') {
-        throw new BadRequestException(`Company with identification ${updateCompanyDto.identification} already exists`);
-      }
-      
-      throw new InternalServerErrorException(`Failed to update company: ${error.message}`);
-    }
+  async update(id: string, dto: UpdateCompanyDto): Promise<Company> {
+    return this.request<Company>('put', `${this.basePath}/${encodeURIComponent(id)}`, dto);
   }
 
   async remove(id: string): Promise<void> {
-    return this.softDelete(id);
+    await this.request<void>('delete', `${this.basePath}/${encodeURIComponent(id)}`);
   }
 
   async softDelete(id: string): Promise<void> {
     try {
-      const success = await this.companyRepository.softDelete(id);
-      if (!success) {
-        throw new NotFoundException(`Company with ID ${id} not found`);
-      }
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(`Failed to delete company: ${error.message}`);
+      await this.request<void>('patch', `${this.basePath}/${encodeURIComponent(id)}/soft-delete`);
+    } catch (err) {
+      await this.remove(id);
     }
   }
 
-  async restore(id: string): Promise<CompanyEntity> {
-    try {
-      const company = await this.companyRepository.restore(id);
-      if (!company) {
-        throw new NotFoundException(`Company with ID ${id} not found`);
-      }
-      return company;
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(`Failed to restore company: ${error.message}`);
-    }
+  async restore(id: string): Promise<Company> {
+    return this.request<Company>('patch', `${this.basePath}/${encodeURIComponent(id)}/restore`);
   }
 }
