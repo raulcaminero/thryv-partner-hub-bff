@@ -19,9 +19,6 @@ export class AppService {
       environment: process.env.NODE_ENV || 'development',
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      databases: {
-        postgresql: 'connected', // TODO: Add actual health check
-      },
     };
   }
 }

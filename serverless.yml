@@ -12,7 +12,6 @@ provider:
   logRetentionInDays: 14
   environment:
     NODE_ENV: ${env:NODE_ENV, 'production'}
-    DATABASE_URL: ${env:DATABASE_URL}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     AUTH0_DOMAIN: ${env:AUTH0_DOMAIN}
     AUTH0_AUDIENCE: ${env:AUTH0_AUDIENCE}

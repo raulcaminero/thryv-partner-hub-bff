@@ -8,6 +8,8 @@ import { AuthTokenModule } from './modules/auth-token/auth-token.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CustomerModule } from './modules/customer/customer.module';
+import { GraphQLModule } from '@nestjs/graphql';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -21,6 +23,14 @@ import { CustomerModule } from './modules/customer/customer.module';
     ThrottlerModule.forRoot({
       ttl: parseInt(process.env.RATE_LIMIT_TTL || '60', 10),
       limit: parseInt(process.env.RATE_LIMIT_LIMIT || '100', 10),
+    }),
+
+    GraphQLModule.forRoot({
+      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+      playground: process.env.NODE_ENV !== 'production',
+      path: '/graphql',
+      sortSchema: true,
+      context: ({ req }) => ({ headers: req?.headers }),
     }),
 
     // HTTP client to proxy requests to other backends
