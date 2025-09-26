@@ -7,8 +7,10 @@ import { AuthModule } from './common/auth/auth.module';
 import { AuthTokenModule } from './modules/auth-token/auth-token.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { HealthResolver } from './health.resolver';
 import { CustomerModule } from './modules/customer/customer.module';
 import { GraphQLModule } from '@nestjs/graphql';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
 import { Request } from 'express';
 
@@ -19,12 +21,10 @@ import { Request } from 'express';
       envFilePath: ['.env.local', '.env.development', '.env.staging', '.env.production', '.env'],
     }),
 
-    // Use async config for Throttler to avoid type mismatch across package versions
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) =>
-        // cast to any to accomodate differences in installed @nestjs/throttler types
         ({
           ttl: parseInt(cfg.get<string>('RATE_LIMIT_TTL') || '60', 10),
           limit: parseInt(cfg.get<string>('RATE_LIMIT_LIMIT') || '100', 10),
@@ -41,7 +41,9 @@ import { Request } from 'express';
       }),
     }),
 
-    GraphQLModule.forRoot({
+    // Use ApolloDriver explicitly (required by @nestjs/graphql v10+)
+    GraphQLModule.forRoot<ApolloDriverConfig>({
+      driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
       sortSchema: true,
       playground: process.env.NODE_ENV !== 'production',
@@ -56,6 +58,6 @@ import { Request } from 'express';
     CustomerModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, HealthResolver],
 })
 export class AppModule {}

@@ -1,0 +1,50 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input CreateCustomerDto {
+  dateBorn: String!
+  gender: String!
+  identification: String!
+  lastname: String!
+  name: String!
+  status: String
+}
+
+type CustomerGql {
+  createDate: String
+  dateBorn: String
+  gender: String
+  id: ID!
+  identification: String!
+  lastname: String!
+  name: String!
+  status: String
+  updateDate: String
+}
+
+type HealthGql {
+  service: String!
+  status: String!
+  timestamp: String!
+}
+
+type Mutation {
+  createCustomer(input: CreateCustomerDto!): CustomerGql!
+  updateCustomer(id: String!, input: UpdateCustomerDto!): CustomerGql!
+}
+
+type Query {
+  customer(id: String!): [CustomerGql!]!
+  customers(limit: Int, page: Int, status: String): [CustomerGql!]!
+  health: HealthGql!
+}
+
+input UpdateCustomerDto {
+  dateBorn: String
+  gender: String
+  identification: String
+  lastname: String
+  name: String
+  status: String
+}
