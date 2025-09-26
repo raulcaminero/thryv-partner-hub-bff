@@ -35,14 +35,6 @@ provider:
             - logs:CreateLogStream
             - logs:PutLogEvents
           Resource: "*"
-        - Effect: Allow
-          Action:
-            - rds-data:BatchExecuteStatement
-            - rds-data:BeginTransaction
-            - rds-data:CommitTransaction
-            - rds-data:ExecuteStatement
-            - rds-data:RollbackTransaction
-          Resource: "*"
 
 plugins:
   - serverless-esbuild

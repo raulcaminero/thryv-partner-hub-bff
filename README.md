@@ -1,13 +1,17 @@
 # thryv-partner-hub-bff
 
-Backend-for-Frontend (BFF) for Thryv — a production-ready NestJS + TypeScript backend that exposes APIs for partner-facing applications. Features modular design, PostgreSQL integration, Auth0 authentication, and comprehensive observability with Datadog and Cube Cloud analytics.
+Backend-for-Frontend (BFF) for Thryv — a NestJS + TypeScript BFF that exposes GraphQL (via Apollo and deployed via AppSync) and HTTP endpoints for partner-facing frontends.
+
+Purpose
+- Provide a single, frontend-tailored API surface (GraphQL) for partner-facing applications.
+- Map GraphQL queries and mutations to downstream HTTP endpoints via resolvers/services.
+- Centralize authentication, authorization (Auth0), rate limiting, observability and request shaping.
 
 ## 🏗️ Architecture Overview
 
 This template implements a modular microservices architecture using:
 
 - **Framework**: NestJS with TypeScript (strict mode)
-- **Databases**: PostgreSQL (via TypeORM)
 - **Authentication**: Auth0 JWT with RS256 validation
 - **Deployment**: AWS Lambda via Serverless Framework
 - **Observability**: Datadog APM, CloudWatch logging, Cube Cloud analytics
@@ -51,25 +55,15 @@ cp .env.example .env.development
 # Edit .env.development with your configuration
 ```
 
-3. **Start local services**
-```bash
-# Start PostgreSQL, DynamoDB Local, and supporting services
-npm run docker:up
-
-# Run database migrations and seed data
-npm run seed:dev
-
-# Note: If you encounter database connection issues, clean Docker volumes:
-# docker-compose down -v && docker-compose up postgres dynamodb-local -d
-```
-
-4. **Start the application**
+3. **Start the application**
 ```bash
 # Development mode with hot reload
 npm run start:dev
+# GraphQL playground (dev): http://localhost:3000/graphql
 
-# Application will be available at http://localhost:3000
-# API documentation at http://localhost:3000/api/docs
+# Docker (recommended)
+docker-compose -f docker-compose.dev.yml up --build -d
+
 ```
 
 ### Environment Variables
@@ -80,12 +74,6 @@ Required environment variables (see `.env.example` for complete list):
 # Core Configuration
 NODE_ENV=development
 PORT=3000
-
-# Database URLs
-DATABASE_URL=postgresql://postgres:password@localhost:5432/thryv_db
-DYNAMODB_REGION=us-east-1
-DYNAMODB_TABLE_COMPANY=company-table
-DYNAMODB_ENDPOINT=http://localhost:8000  # Local development only
 
 # AWS Credentials
 AWS_ACCESS_KEY_ID=your-access-key
@@ -101,8 +89,6 @@ AUTH0_JWKS_URI=https://your-domain.auth0.com/.well-known/jwks.json
 DD_API_KEY=your-datadog-api-key
 DD_SERVICE=thryv-partner-hub-bff
 DD_ENV=development
-CUBE_API_URL=https://your-deployment.cubecloud.dev/cubejs-api/v1
-CUBE_API_TOKEN=your-cube-token
 
 # Security & Performance
 CORS_ORIGIN=http://localhost:3000,http://localhost:3001
@@ -156,13 +142,6 @@ npm run test:cov
 npm run test:watch
 ```
 
-### Test Database Setup
-
-Tests use isolated test databases:
-- PostgreSQL: `thryv_test_db`
-
-Test configuration automatically mocks Auth0 JWT validation.
-
 ## 🐳 Docker Development
 
 The template includes comprehensive Docker support:
@@ -186,9 +165,6 @@ docker-compose down -v && docker-compose up --build
 
 ### Included Services
 - **Application**: NestJS app with hot reload
-- **PostgreSQL**: Database with PgAdmin UI (port 8080)
-- **DynamoDB Local**: NoSQL database with Admin UI (port 8001)  
-- **Redis**: Caching layer
 - **Health checks**: Automatic service dependency management
 
 ## ☁️ AWS Lambda Deployment
@@ -217,7 +193,6 @@ npm run serverless:remove
 
 The serverless deployment creates:
 - **Lambda Functions**: API and Reports handlers
-- **DynamoDB Table**: Company table with GSI
 - **CloudWatch Log Groups**: Structured logging  
 - **IAM Roles**: Least privilege access
 - **API Gateway**: HTTP endpoints with CORS
@@ -229,8 +204,6 @@ Configure environment variables for each stage:
 ```bash
 # Development
 export SERVERLESS_STAGE=development
-export DATABASE_URL=postgresql://...
-export DYNAMODB_TABLE_COMPANY=company-dev
 export AUTH0_DOMAIN=dev.auth0.com
 # ... other dev-specific vars
 
@@ -330,20 +303,15 @@ src/
 │   ├── services/            # Shared services (logger)
 │   └── common.module.ts
 ├── config/                   # Configuration files
-│   ├── database.config.ts    # TypeORM configuration
-│   └── tracing.config.ts     # Datadog tracing setup
 ├── modules/                  # Business modules
 │   ├── customer/            # Customer module (PostgreSQL)
 │   │   ├── controllers/     # REST controllers  
 │   │   ├── dto/            # Data transfer objects
-│   │   ├── entities/       # TypeORM entities
 │   │   ├── services/       # Business logic
 │   │   └── customer.module.ts
 │   ├── company/            # Company module (DynamoDB)  
 │   │   ├── controllers/
 │   │   ├── dto/
-│   │   ├── entities/       # DynamoDB entities
-│   │   ├── repositories/   # DynamoDB repository
 │   │   ├── services/
 │   │   └── company.module.ts
 │   └── reports/            # Analytics & reporting
@@ -355,18 +323,13 @@ src/
 ├── app.service.ts         # Application service
 ├── main.ts               # Application entry point
 └── lambda.ts            # AWS Lambda entry point
-
 scripts/                   # Utility scripts
-├── init-db.sql           # PostgreSQL initialization
-└── seed.ts              # Database seeding script
-
 test/                     # Test configuration
 ├── jest-e2e.json        # E2E test config
 ├── jest-integration.json # Integration test config  
 └── setup.ts             # Test setup & mocks
 
 docker/                   # Docker configuration
-└── dynamodb/            # DynamoDB Local data
 
 ```
 
@@ -397,80 +360,25 @@ docker/                   # Docker configuration
 
 ### Optimization Strategies
 
-- **Database Indexing**: Optimized indexes for query patterns
-- **Connection Pooling**: TypeORM connection management  
-- **Caching Layer**: Redis for frequently accessed data
 - **Compression**: Gzip compression for API responses
 - **Bundle Optimization**: Tree shaking and minification
 
 ### Lambda Performance
 - **Cold Start Optimization**: Provisioned concurrency for critical functions
 - **Memory Allocation**: Right-sized memory per function type
-- **VPC Configuration**: Optional VPC for database access
-- **Connection Reuse**: Persistent database connections
 
 ### Monitoring & Alerting
 ```bash
 # Key metrics to monitor
 - Lambda duration & cold starts
-- Database connection pool usage  
 - API response times (p95, p99)
 - Error rates by endpoint
 - Authentication failure rates
 ```
 
-## 🛠️ Migration & Database Management
-
-### TypeORM Migrations
-
-```bash
-# Generate migration from entity changes
-npm run migration:generate -- -n CreateCustomerTable
-
-# Run pending migrations  
-npm run migration:run
-
-# Revert last migration
-npm run migration:revert
-```
-
-### DynamoDB Schema Management
-
-DynamoDB tables are managed via serverless.yml and created automatically during deployment. For local development, tables are created by the seeding script.
-
-### Data Seeding
-
-```bash
-# Seed development data
-npm run seed:dev
-
-# Seed specific environment
-NODE_ENV=staging npm run seed
-```
-
 ## 🚨 Troubleshooting
 
 ### Common Issues
-
-**1. Database Connection Failures**
-```bash
-# Check database status
-docker-compose ps postgres
-
-# View database logs  
-docker-compose logs postgres
-
-# Reset database
-docker-compose down -v
-docker-compose up postgres
-```
-
-**2. DynamoDB Local Issues**
-```bash
-# Reset DynamoDB Local data
-rm -rf docker/dynamodb/*
-docker-compose restart dynamodb-local
-```
 
 **3. Docker Build Errors**
 ```bash
@@ -487,15 +395,7 @@ docker-compose up
 # The template uses Dockerfile.dev which sets HUSKY=0
 ```
 
-**4. PostgreSQL Schema Conflicts**
-```bash
-# If seeing "column contains null values" errors:
-docker exec -it <postgres_container> psql -U postgres -d thryv_db \
-  -c "DROP TABLE IF EXISTS customers CASCADE; DROP TYPE IF EXISTS customers_gender_enum CASCADE;"
-docker-compose restart app
-```
-
-**5. Auth0 JWT Validation Errors**
+**4. Auth0 JWT Validation Errors**
 ```bash
 # Verify Auth0 configuration
 curl https://YOUR_DOMAIN.auth0.com/.well-known/jwks.json
@@ -504,7 +404,7 @@ curl https://YOUR_DOMAIN.auth0.com/.well-known/jwks.json
 # Use jwt.io to decode and verify token
 ```
 
-**6. Lambda Deployment Failures**  
+**5. Lambda Deployment Failures**  
 ```bash
 # Check AWS credentials
 aws sts get-caller-identity
@@ -529,9 +429,6 @@ Monitor application health:
 ```bash  
 # Basic health check
 curl http://localhost:3000/health
-
-# Database connectivity
-curl http://localhost:3000/health | jq '.databases'
 
 # Reports service health  
 curl http://localhost:3000/reports/health
@@ -569,7 +466,6 @@ curl http://localhost:3000/reports/health
 Before deploying to production:
 
 - [ ] All environment variables configured
-- [ ] Database migrations tested
 - [ ] Security scan passed (Snyk/OWASP)
 - [ ] Load testing completed  
 - [ ] Monitoring dashboards configured
