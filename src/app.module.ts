@@ -10,30 +10,27 @@ import { AppService } from './app.service';
 import { CustomerModule } from './modules/customer/customer.module';
 import { GraphQLModule } from '@nestjs/graphql';
 import { join } from 'path';
+import { Request } from 'express';
 
 @Module({
   imports: [
-    // Environment configuration
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.local', '.env.development', '.env.staging', '.env.production', '.env'],
     }),
 
-    // Rate limiting
-    ThrottlerModule.forRoot({
-      ttl: parseInt(process.env.RATE_LIMIT_TTL || '60', 10),
-      limit: parseInt(process.env.RATE_LIMIT_LIMIT || '100', 10),
+    // Use async config for Throttler to avoid type mismatch across package versions
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (cfg: ConfigService) =>
+        // cast to any to accomodate differences in installed @nestjs/throttler types
+        ({
+          ttl: parseInt(cfg.get<string>('RATE_LIMIT_TTL') || '60', 10),
+          limit: parseInt(cfg.get<string>('RATE_LIMIT_LIMIT') || '100', 10),
+        } as any),
     }),
 
-    GraphQLModule.forRoot({
-      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
-      playground: process.env.NODE_ENV !== 'production',
-      path: '/graphql',
-      sortSchema: true,
-      context: ({ req }) => ({ headers: req?.headers }),
-    }),
-
-    // HTTP client to proxy requests to other backends
     HttpModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -42,6 +39,14 @@ import { join } from 'path';
         timeout: parseInt(cfg.get<string>('REMOTE_HTTP_TIMEOUT') || '10000', 10),
         maxRedirects: 5,
       }),
+    }),
+
+    GraphQLModule.forRoot({
+      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+      sortSchema: true,
+      playground: process.env.NODE_ENV !== 'production',
+      path: '/graphql',
+      context: ({ req }: { req?: Request }) => ({ headers: req?.headers }),
     }),
 
     // Application modules
