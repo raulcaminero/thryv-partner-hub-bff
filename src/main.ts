@@ -14,10 +14,25 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
-  // Security middleware
-  app.use(helmet());
-  app.use(compression());
+    // Security middleware with relaxed CSP in non-production so GraphQL Playground can load remote middleware
+  const helmetOptions =
+    process.env.NODE_ENV === 'production'
+      ? undefined
+      : {
+          contentSecurityPolicy: {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'", "https://cdn.jsdelivr.net", "'unsafe-inline'"],
+              styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+              imgSrc: ["'self'", "data:", "https://cdn.jsdelivr.net"],
+              connectSrc: ["'self'", "wss:", "https://cdn.jsdelivr.net"],
+              fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            },
+          },
+        };
 
+  app.use(helmet(helmetOptions));
+  app.use(compression());
   // Global validation pipe with transformation
   app.useGlobalPipes(
     new ValidationPipe({

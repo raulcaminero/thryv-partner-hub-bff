@@ -9,9 +9,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthResolver } from './health.resolver';
 import { CustomerModule } from './modules/customer/customer.module';
+import { UserModule } from './modules/user/user.module';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
+import * as https from 'https';
 import { Request } from 'express';
 
 @Module({
@@ -38,6 +40,10 @@ import { Request } from 'express';
         baseURL: cfg.get<string>('REMOTE_BACKEND_URL') || cfg.get<string>('REMOTE_API_URL'),
         timeout: parseInt(cfg.get<string>('REMOTE_HTTP_TIMEOUT') || '10000', 10),
         maxRedirects: 5,
+        // Dev-only: allow disabling TLS verification when DISABLE_SSL_VERIFY=true
+        ...(process.env.NODE_ENV !== 'production' && process.env.DISABLE_SSL_VERIFY === 'true'
+          ? { httpsAgent: new https.Agent({ rejectUnauthorized: false }) }
+          : {}),
       }),
     }),
 
@@ -47,6 +53,7 @@ import { Request } from 'express';
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
       sortSchema: true,
       playground: process.env.NODE_ENV !== 'production',
+      introspection: process.env.NODE_ENV !== 'production',
       path: '/graphql',
       context: ({ req }: { req?: Request }) => ({ headers: req?.headers }),
     }),
@@ -56,6 +63,7 @@ import { Request } from 'express';
     AuthModule,
     AuthTokenModule,
     CustomerModule,
+    UserModule
   ],
   controllers: [AppController],
   providers: [AppService, HealthResolver],

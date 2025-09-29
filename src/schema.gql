@@ -34,10 +34,21 @@ type Mutation {
   updateCustomer(id: String!, input: UpdateCustomerDto!): CustomerGql!
 }
 
+type PostGql {
+  body: String!
+  id: ID!
+  title: String!
+  userId: Float!
+}
+
 type Query {
   customer(id: String!): [CustomerGql!]!
   customers(limit: Int, page: Int, status: String): [CustomerGql!]!
   health: HealthGql!
+  testPosts: [PostGql!]!
+  testPostsByUser(userId: String!): [PostGql!]!
+  testUser(id: String!): UserGql
+  testUsers: [UserGql!]!
 }
 
 input UpdateCustomerDto {
@@ -47,4 +58,11 @@ input UpdateCustomerDto {
   lastname: String
   name: String
   status: String
+}
+
+type UserGql {
+  email: String!
+  id: ID!
+  name: String!
+  username: String!
 }

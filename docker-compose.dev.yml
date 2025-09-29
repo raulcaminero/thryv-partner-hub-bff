@@ -9,6 +9,8 @@ services:
     environment:
       - NODE_ENV=development
       - REMOTE_BACKEND_URL=${REMOTE_BACKEND_URL:-http://host.docker.internal:4000}
+      - AUTH_BYPASS=true
+      - DISABLE_SSL_VERIFY=true
     ports:
       - "3000:3000"
     volumes:

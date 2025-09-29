@@ -18,14 +18,30 @@ async function createServer() {
     return server;
   }
 
-  // Initialize tracing
+// Initialize tracing
   initializeTracing();
 
   const expressApp = express();
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp));
 
-  // Security middleware
-  app.use(helmet());
+  // Security middleware with relaxed CSP in non-production so GraphQL Playground can load remote middleware
+  const helmetOptions =
+    process.env.NODE_ENV === 'production'
+      ? undefined
+      : {
+          contentSecurityPolicy: {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'", "https://cdn.jsdelivr.net", "'unsafe-inline'"],
+              styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+              imgSrc: ["'self'", "data:", "https://cdn.jsdelivr.net"],
+              connectSrc: ["'self'", "wss:", "https://cdn.jsdelivr.net"],
+              fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            },
+          },
+        };
+
+  app.use(helmet(helmetOptions));
   app.use(compression());
 
   // Global validation pipe

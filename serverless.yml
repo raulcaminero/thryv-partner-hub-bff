@@ -99,31 +99,188 @@ functions:
 
 resources:
   Resources:
-    # CloudWatch Log Groups
+    # CloudWatch Log Groups (fixed indentation)
     ApiLogGroup:
       Type: AWS::Logs::LogGroup
       Properties:
-  LogGroupName: /aws/lambda/thryv-partner-hub-bff-${self:provider.stage}-api
+        LogGroupName: /aws/lambda/thryv-partner-hub-bff-${self:provider.stage}-api
         RetentionInDays: 14
 
     ReportsLogGroup:
       Type: AWS::Logs::LogGroup
       Properties:
-  LogGroupName: /aws/lambda/thryv-partner-hub-bff-${self:provider.stage}-reports
+        LogGroupName: /aws/lambda/thryv-partner-hub-bff-${self:provider.stage}-reports
         RetentionInDays: 14
 
-    # VPC Configuration (uncomment if needed)
-    # VPC:
-    #   Type: AWS::EC2::VPC
-    #   Properties:
-    #     CidrBlock: 10.0.0.0/16
-    #     EnableDnsHostnames: true
-    #     EnableDnsSupport: true
+    # AppSync GraphQL API (API_KEY for dev)
+    AppSyncGraphQLApi:
+      Type: AWS::AppSync::GraphQLApi
+      Properties:
+        Name: thryv-partner-hub-bff-graphql-${self:provider.stage}
+        AuthenticationType: API_KEY
+        XrayEnabled: true
+
+    AppSyncApiKey:
+      Type: AWS::AppSync::ApiKey
+      Properties:
+        ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+        Expires: 4102444800
+
+    AppSyncGraphQLSchema:
+      Type: AWS::AppSync::GraphQLSchema
+      Properties:
+        ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+        Definition: |
+          # Schema from src/schema.gql (code-first output)
+          input CreateCustomerDto {
+            dateBorn: String!
+            gender: String!
+            identification: String!
+            lastname: String!
+            name: String!
+            status: String
+          }
+
+          type CustomerGql {
+            createDate: String
+            dateBorn: String
+            gender: String
+            id: ID!
+            identification: String!
+            lastname: String!
+            name: String!
+            status: String
+            updateDate: String
+          }
+
+          type HealthGql {
+            service: String!
+            status: String!
+            timestamp: String!
+          }
+
+          type Mutation {
+            createCustomer(input: CreateCustomerDto!): CustomerGql!
+            updateCustomer(id: String!, input: UpdateCustomerDto!): CustomerGql!
+          }
+
+          type Query {
+            customer(id: String!): [CustomerGql!]!
+            customers(limit: Int, page: Int, status: String): [CustomerGql!]!
+            health: HealthGql!
+          }
+
+          input UpdateCustomerDto {
+            dateBorn: String
+            gender: String
+            identification: String
+            lastname: String
+            name: String
+            status: String
+          }
+
+          schema {
+            query: Query
+            mutation: Mutation
+          }
+
+    # HTTP DataSource pointing to API Gateway + /graphql (AppModule serves GraphQL at /graphql)
+    AppSyncHttpDataSource:
+      Type: AWS::AppSync::DataSource
+      Properties:
+        ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+        Name: BffHttpDataSource
+        Type: HTTP
+        HttpConfig:
+          # uses generated API Gateway RestApi logical id - Serverless exposes ApiGatewayRestApi
+          Endpoint: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}/graphql"
+
+    # Example AppSync Resolver: customers -> GET /customers
+    CustomersQueryResolver:
+      Type: AWS::AppSync::Resolver
+      Properties:
+        ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+        TypeName: Query
+        FieldName: customers
+        DataSourceName: !Ref AppSyncHttpDataSource
+        Kind: UNIT
+        RequestMappingTemplate: |
+          {
+            "version": "2018-05-29",
+            "method": "GET",
+            "resourcePath": "/customers",
+            "params": {
+              "headers": {
+                "Authorization": "$context.request.headers.Authorization"
+              },
+              "query": {
+                "page": "$context.arguments.page",
+                "limit": "$context.arguments.limit",
+                "status": "$context.arguments.status"
+              }
+            }
+          }
+        ResponseMappingTemplate: |
+          $util.toJson($context.result.body)
+
+    # Example AppSync Resolver: customer(id) -> GET /customers/{id}
+    CustomerByIdQueryResolver:
+      Type: AWS::AppSync::Resolver
+      Properties:
+        ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+        TypeName: Query
+        FieldName: customer
+        DataSourceName: !Ref AppSyncHttpDataSource
+        Kind: UNIT
+        RequestMappingTemplate: |
+          {
+            "version": "2018-05-29",
+            "method": "GET",
+            "resourcePath": "/customers/${context.arguments.id}",
+            "params": {
+              "headers": {
+                "Authorization": "$context.request.headers.Authorization"
+              }
+            }
+          }
+        ResponseMappingTemplate: |
+          $util.toJson($context.result.body)
+
+    # Example AppSync Resolver: createCustomer -> POST /customers
+    CreateCustomerMutationResolver:
+      Type: AWS::AppSync::Resolver
+      Properties:
+        ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+        TypeName: Mutation
+        FieldName: createCustomer
+        DataSourceName: !Ref AppSyncHttpDataSource
+        Kind: UNIT
+        RequestMappingTemplate: |
+          {
+            "version": "2018-05-29",
+            "method": "POST",
+            "resourcePath": "/customers",
+            "params": {
+              "headers": {
+                "Authorization": "$context.request.headers.Authorization",
+                "Content-Type": "application/json"
+              },
+              "body": $utils.toJson($context.arguments.input)
+            }
+          }
+        ResponseMappingTemplate: |
+          $util.toJson($context.result.body)
 
   Outputs:
+    AppSyncApiId:
+      Value: !GetAtt AppSyncGraphQLApi.ApiId
+      Description: AppSync GraphQL API Id
+    AppSyncApiKey:
+      Value: !Ref AppSyncApiKey
+      Description: AppSync API Key (dev)
     ApiUrl:
       Description: "API Gateway endpoint URL"
-      Value: !Sub "https://${RestApiApigwExecutionRole}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
+      Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
 
 package:
   individually: true
